@@ -17,13 +17,16 @@ Base = declarative_base()
 # create password hashing object
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# create models
+# create models for db tables
+
+#for User table
 class User(Base):
     tablename = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True)
     hashed_password = Column(String(100))
 
+#for TodoItem table
 class TodoItem(Base):
     tablename = "todo_items"
     id = Column(Integer, primary_key=True, index=True)
@@ -39,12 +42,13 @@ User.todo_items = relationship("TodoItem", back_populates="user")
 # create database tables
 Base.metadata.create_all(bind=engine)
 
-# create FastAPI app
+# create an instance of FastAPI app
 app = FastAPI()
 
 # authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+#function to create a session in the database
 def get_db():
     db = SessionLocal()
     try:
@@ -52,12 +56,15 @@ def get_db():
     finally:
         db.close()
 
+#function to verify the user entered password with hashed user password in the db
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+#function to get the username
 def get_user(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
+#function to authenticate the user
 def authenticate_user(db: Session, username: str, password: str):
     user = get_user(db, username)
     if not user:
@@ -66,6 +73,7 @@ def authenticate_user(db: Session, username: str, password: str):
         return False
     return user
 
+#route to generate a token for the user to authenticate with the application
 @app.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     db = next(get_db())
@@ -81,6 +89,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 # CRUD operations
+
+#pydantic models
 class TodoItemBase(BaseModel):
     title: str
     description: str
@@ -96,6 +106,7 @@ class TodoItem(TodoItemBase):
     class Config:
         orm_mode = True
 
+#route to create a todo_item
 @app.post("/todo_items/", response_model=TodoItem)
 async def create_todo_item(todo_item: TodoItemCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db_todo_item = TodoItem(title=todo_item.title, description=todo_item.description, user_id=current_user.id)
@@ -104,6 +115,7 @@ async def create_todo_item(todo_item: TodoItemCreate, current_user: User = Depen
     db.refresh(db_todo_item)
     return db_todo_item
 
+#route to read the todo_items
 @app.get("/todo_items/", response_model=List[TodoItem])
 async def read_todo_items(skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     todo_items = db.query(TodoItem).filter(TodoItem.user_id == current_user.id).offset(skip).limit(limit).all()
