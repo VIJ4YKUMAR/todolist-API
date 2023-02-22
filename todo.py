@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
 # create database connection
-SQLALCHEMY_DATABASE_URL = "mysql://user:password@host/dbname"  # replace with your own database URL
+SQLALCHEMY_DATABASE_URL = "mysql://vijay:*******@Localhost/TodoList"  # replace with your own database URL
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
